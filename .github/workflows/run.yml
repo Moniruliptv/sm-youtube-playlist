@@ -1,35 +1,51 @@
-name: Auto YouTube Playlist
+name: YouTube Playlist Auto Generator
 
 on:
-  schedule:
-    - cron: "0 * * * *"   # প্রতি ১ ঘন্টায় রান
   workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"    # প্রতি ৬ ঘন্টায় রান হবে (ইচ্ছেমত বদলানো যায়)
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
 
-      - name: Install yt-dlp
-        run: pip install yt-dlp
+    - name: Install dependencies
+      run: |
+        pip install yt-dlp
+        pip install requests
 
-      - name: Create cookies.txt
-        run: echo "${{ secrets.COOKIES }}" > cookies.txt
+    # ----------------------------
+    # Decode Base64 → cookies.txt
+    # ----------------------------
+    - name: Decode cookies file
+      run: |
+        echo "${{ secrets.COOKIES_BASE64 }}" | base64 --decode > cookies.txt
+        echo "First 5 lines of cookies.txt"
+        head -n 5 cookies.txt
 
-      - name: Run script
-        run: python script.py
+    # ----------------------------
+    # Run your Python YouTube script
+    # ----------------------------
+    - name: Run Python script
+      run: |
+        python main.py
 
-      - name: Commit playlist
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add YT_playlist.m3u
-          git commit -m "Auto updated playlist"
-          git push
+    # ----------------------------
+    # Commit & Push generated playlist
+    # ----------------------------
+    - name: Commit playlist
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add YT_playlist.m3u
+        git commit -m "Auto Updated Playlist $(date)" || echo "No changes"
+        git push
